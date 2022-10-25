@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use beatmap_mirror::{api, config::Config, crawler, updater, Context};
 use clap::Parser;
@@ -38,7 +38,7 @@ async fn main() -> anyhow::Result<()> {
     let osu_api = OsuBuilder::new()
         .ratelimit(config.max_requests_per_second)
         .retries(config.max_retries)
-        .timeout(config.max_timeout)
+        .timeout(Duration::from_secs(config.max_timeout))
         .client_id(config.osu_api_client_id)
         .client_secret(config.osu_api_client_secret.clone())
         .build()
