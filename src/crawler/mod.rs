@@ -21,14 +21,15 @@ async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
         .send()
         .await?;
 
-    let mut highest_id = elastic_response
+    let mut current_id = elastic_response
         .json::<serde_json::Value>()
         .await?
         .pointer("/aggregations/max_id/value")
         .and_then(|v| v.as_f64())
-        .unwrap_or(1.0) as u64;
+        .unwrap_or(1.0) as u64
+        + 1;
 
-    log::info!("starting beatmap crawl from id {}", highest_id);
+    log::info!("starting beatmap crawl from id {}", current_id);
 
     let mut backoff_time = ctx.config.backoff_start;
 
@@ -36,16 +37,16 @@ async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
         let beatmap_ids: Vec<u32> = (0..50)
             .collect::<Vec<u32>>()
             .iter()
-            .map(|i| highest_id as u32 + 1 + i)
+            .map(|i| current_id as u32 + 1 + i)
             .collect();
 
-        highest_id += 50;
+        current_id += 50;
 
         let mut osu_beatmaps =
             match repositories::osu::beatmaps::bulk_fetch(&ctx, beatmap_ids).await {
                 Ok(beatmaps) => beatmaps,
                 Err(_) => {
-                    log::error!("error while fetching beatmaps from id {}", highest_id);
+                    log::error!("error while fetching beatmaps from id {}", current_id);
                     vec![]
                 }
             };
@@ -78,7 +79,7 @@ async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
             log::warn!(
                 "backing off on beatmaps for {} seconds from id {}",
                 backoff_time,
-                highest_id
+                current_id
             );
             tokio::time::sleep(Duration::from_secs(backoff_time as u64)).await;
         }
@@ -100,26 +101,27 @@ async fn crawl_beatmapsets(ctx: &Context) -> anyhow::Result<()> {
         .send()
         .await?;
 
-    let mut highest_id = elastic_response
+    let mut current_id = elastic_response
         .json::<serde_json::Value>()
         .await?
         .pointer("/aggregations/max_id/value")
         .and_then(|v| v.as_f64())
-        .unwrap_or(1.0) as u32;
+        .unwrap_or(0.0) as u32
+        + 1;
 
-    log::info!("starting beatmapset crawl from id {}", highest_id);
+    log::info!("starting beatmapset crawl from id {}", current_id);
 
     let mut backoff_time: f64 = ctx.config.backoff_start;
 
     loop {
-        let beatmapset = match repositories::osu::beatmapsets::fetch(&ctx, highest_id).await {
+        let beatmapset = match repositories::osu::beatmapsets::fetch(&ctx, current_id).await {
             Ok(beatmapset) => beatmapset,
             Err(_) => {
-                log::error!("error while fetching beatmapset {}", highest_id);
+                log::error!("error while fetching beatmapset {}", current_id);
                 None
             }
         };
-        highest_id += 1;
+        current_id += 1;
 
         if let Some(osu_beatmapset) = beatmapset {
             backoff_time = ctx.config.backoff_start;
@@ -134,7 +136,7 @@ async fn crawl_beatmapsets(ctx: &Context) -> anyhow::Result<()> {
             };
 
             repositories::beatmapsets::create(&ctx, beatmapset).await?;
-            log::info!("indexed beatmapset {}", highest_id - 1);
+            log::info!("indexed beatmapset {}", current_id - 1);
         } else {
             if backoff_time < ctx.config.max_backoff {
                 backoff_time = backoff_time.powf(2_f64).min(ctx.config.max_backoff);
@@ -143,7 +145,7 @@ async fn crawl_beatmapsets(ctx: &Context) -> anyhow::Result<()> {
             log::warn!(
                 "backing off on beatmapsets for {} seconds from id {}",
                 backoff_time,
-                highest_id
+                current_id
             );
             tokio::time::sleep(Duration::from_secs(backoff_time as u64)).await;
         }
