@@ -59,7 +59,18 @@ async fn update_beatmaps(ctx: &Context) -> anyhow::Result<()> {
             .collect();
 
         for mut beatmap in beatmaps {
-            let osu_beatmap = repositories::osu::beatmaps::fetch(ctx, beatmap.data.map_id).await?;
+            let osu_beatmap =
+                match repositories::osu::beatmaps::fetch(ctx, beatmap.data.map_id).await {
+                    Ok(beatmap) => beatmap,
+                    Err(_) => {
+                        log::error!(
+                            "error while fetching beatmap {} from osu api",
+                            beatmap.data.map_id
+                        );
+
+                        continue;
+                    }
+                };
 
             if let Some(osu_beatmap) = osu_beatmap {
                 let now = chrono::Utc::now();
@@ -133,7 +144,17 @@ async fn update_beatmapsets(ctx: &Context) -> anyhow::Result<()> {
 
         for mut beatmapset in beatmapsets {
             let osu_beatmapset =
-                repositories::osu::beatmapsets::fetch(ctx, beatmapset.data.mapset_id).await?;
+                match repositories::osu::beatmapsets::fetch(ctx, beatmapset.data.mapset_id).await {
+                    Ok(beatmapset) => beatmapset,
+                    Err(_) => {
+                        log::error!(
+                            "error while fetching beatmapset {} from osu api",
+                            beatmapset.data.mapset_id
+                        );
+
+                        continue;
+                    }
+                };
 
             if let Some(osu_beatmapset) = osu_beatmapset {
                 let now = chrono::Utc::now();
