@@ -40,7 +40,15 @@ async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
 
         highest_id += 50;
 
-        let mut osu_beatmaps = repositories::osu::beatmaps::bulk_fetch(&ctx, beatmap_ids).await?;
+        let mut osu_beatmaps =
+            match repositories::osu::beatmaps::bulk_fetch(&ctx, beatmap_ids).await {
+                Ok(beatmaps) => beatmaps,
+                Err(_) => {
+                    log::error!("error while fetching beatmaps from id {}", highest_id);
+                    vec![]
+                }
+            };
+
         let beatmaps_found = osu_beatmaps.len();
 
         log::info!("found {} beatmaps", beatmaps_found);
