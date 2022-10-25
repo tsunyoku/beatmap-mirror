@@ -7,7 +7,7 @@ use elasticsearch::SearchParts;
 use elasticsearch_dsl::{Aggregation, Search};
 use std::time::Duration;
 
-const MAXIMUM_BACKOFF_SECONDS: usize = 10;
+const MAXIMUM_BACKOFF_SECONDS: usize = 30;
 
 async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
     elastic::create_index_if_not_exists(&ctx.database, &ctx.config.elastic_beatmaps_index).await?;
@@ -29,7 +29,7 @@ async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
 
     log::info!("starting beatmap crawl from id {}", highest_id);
 
-    let mut backoff_time = 2;
+    let mut backoff_time = 1.5;
 
     loop {
         let beatmap_ids: Vec<u32> = (0..50)
@@ -54,7 +54,7 @@ async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
         log::info!("found {} beatmaps", beatmaps_found);
 
         if beatmaps_found > 0 {
-            backoff_time = 2;
+            backoff_time = 1.5;
 
             let now = chrono::Utc::now();
             let beatmaps = osu_beatmaps
@@ -104,7 +104,7 @@ async fn crawl_beatmapsets(ctx: &Context) -> anyhow::Result<()> {
 
     log::info!("starting beatmapset crawl from id {}", highest_id);
 
-    let mut backoff_time = 2;
+    let mut backoff_time = 1.5;
 
     loop {
         let beatmapset = match repositories::osu::beatmapsets::fetch(&ctx, highest_id).await {
