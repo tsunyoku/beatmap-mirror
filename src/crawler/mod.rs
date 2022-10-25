@@ -5,7 +5,7 @@ use crate::{
 };
 use elasticsearch::SearchParts;
 use elasticsearch_dsl::{Aggregation, Query, Search};
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
     elastic::create_index_if_not_exists(&ctx.database, &ctx.config.elastic_beatmaps_index).await?;
@@ -151,7 +151,14 @@ async fn crawl_beatmapsets(ctx: &Context) -> anyhow::Result<()> {
 }
 
 pub async fn serve(context: Context) -> anyhow::Result<()> {
-    let res = tokio::try_join!(crawl_beatmaps(&context), crawl_beatmapsets(&context));
+    let context_arc = Arc::new(context);
+    let beatmaps_context = context_arc.clone();
+    let beatmapsets_context = context_arc.clone();
+
+    let res = tokio::try_join!(
+        tokio::spawn(async move { crawl_beatmaps(beatmaps_context.as_ref()).await }),
+        tokio::spawn(async move { crawl_beatmapsets(beatmapsets_context.as_ref()).await })
+    );
     if !res.is_ok() {
         anyhow::bail!("crawler failed: {:?}", res);
     }
