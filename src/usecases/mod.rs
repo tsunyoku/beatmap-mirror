@@ -1,2 +1,2 @@
-pub mod beatmapsets;
 pub mod beatmaps;
+pub mod beatmapsets;
