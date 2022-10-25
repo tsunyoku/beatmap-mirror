@@ -6,4 +6,5 @@ pub struct Beatmapset {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub last_checked: DateTime<Utc>,
+    pub crawled: bool,
 }

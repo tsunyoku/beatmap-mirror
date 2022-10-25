@@ -4,13 +4,16 @@ use crate::{
     repositories, Context,
 };
 use elasticsearch::SearchParts;
-use elasticsearch_dsl::{Aggregation, Search};
+use elasticsearch_dsl::{Aggregation, Query, Search};
 use std::time::Duration;
 
 async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
     elastic::create_index_if_not_exists(&ctx.database, &ctx.config.elastic_beatmaps_index).await?;
 
-    let query = Search::new().aggregate("max_id", Aggregation::max("data.id"));
+    let query = Search::new()
+        .query(Query::bool().must(Query::term("crawled", true)))
+        .aggregate("max_id", Aggregation::max("data.id"));
+
     let elastic_response = ctx
         .database
         .search(SearchParts::Index(&[&ctx.config.elastic_beatmaps_index]))
@@ -62,6 +65,7 @@ async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
                     created_at: now,
                     updated_at: now,
                     last_checked: now,
+                    crawled: true,
                 })
                 .collect();
 
@@ -85,7 +89,10 @@ async fn crawl_beatmapsets(ctx: &Context) -> anyhow::Result<()> {
     elastic::create_index_if_not_exists(&ctx.database, &ctx.config.elastic_beatmapsets_index)
         .await?;
 
-    let query = Search::new().aggregate("max_id", Aggregation::max("data.id"));
+    let query = Search::new()
+        .query(Query::bool().must(Query::term("crawled", true)))
+        .aggregate("max_id", Aggregation::max("data.id"));
+
     let elastic_response = ctx
         .database
         .search(SearchParts::Index(&[&ctx.config.elastic_beatmapsets_index]))
@@ -123,6 +130,7 @@ async fn crawl_beatmapsets(ctx: &Context) -> anyhow::Result<()> {
                 created_at: current_time,
                 updated_at: current_time,
                 last_checked: current_time,
+                crawled: true,
             };
 
             repositories::beatmapsets::create(&ctx, beatmapset).await?;

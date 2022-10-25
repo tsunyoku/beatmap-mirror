@@ -40,6 +40,7 @@ pub async fn fetch(ctx: &Context, beatmapset_id: u32) -> anyhow::Result<Option<B
                 created_at: now,
                 updated_at: now,
                 last_checked: now,
+                crawled: false,
             };
 
             repositories::beatmapsets::create(ctx, beatmapset.clone()).await?;
