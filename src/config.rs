@@ -35,4 +35,10 @@ pub struct Config {
 
     #[clap(long, env)]
     pub osu_password: String,
+
+    #[clap(long, env)]
+    pub backoff_start: f64,
+
+    #[clap(long, env)]
+    pub max_backoff: f64,
 }

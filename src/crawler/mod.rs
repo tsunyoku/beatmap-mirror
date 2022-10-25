@@ -7,8 +7,6 @@ use elasticsearch::SearchParts;
 use elasticsearch_dsl::{Aggregation, Search};
 use std::time::Duration;
 
-const MAXIMUM_BACKOFF_SECONDS: f64 = 30.0;
-
 async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
     elastic::create_index_if_not_exists(&ctx.database, &ctx.config.elastic_beatmaps_index).await?;
 
@@ -29,7 +27,7 @@ async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
 
     log::info!("starting beatmap crawl from id {}", highest_id);
 
-    let mut backoff_time: f64 = 1.5;
+    let mut backoff_time = ctx.config.backoff_start;
 
     loop {
         let beatmap_ids: Vec<u32> = (0..50)
@@ -54,7 +52,7 @@ async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
         log::info!("found {} beatmaps", beatmaps_found);
 
         if beatmaps_found > 0 {
-            backoff_time = 1.5;
+            backoff_time = ctx.config.backoff_start;
 
             let now = chrono::Utc::now();
             let beatmaps = osu_beatmaps
@@ -69,8 +67,8 @@ async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
 
             repositories::beatmaps::bulk_create(&ctx, beatmaps).await?;
         } else {
-            if backoff_time < MAXIMUM_BACKOFF_SECONDS {
-                backoff_time = backoff_time.powf(2_f64).min(MAXIMUM_BACKOFF_SECONDS);
+            if backoff_time < ctx.config.max_backoff {
+                backoff_time = backoff_time.powf(2_f64).min(ctx.config.max_backoff);
             }
 
             log::warn!(
@@ -104,7 +102,7 @@ async fn crawl_beatmapsets(ctx: &Context) -> anyhow::Result<()> {
 
     log::info!("starting beatmapset crawl from id {}", highest_id);
 
-    let mut backoff_time: f64 = 1.5;
+    let mut backoff_time: f64 = ctx.config.backoff_start;
 
     loop {
         let beatmapset = match repositories::osu::beatmapsets::fetch(&ctx, highest_id).await {
@@ -117,7 +115,7 @@ async fn crawl_beatmapsets(ctx: &Context) -> anyhow::Result<()> {
         highest_id += 1;
 
         if let Some(osu_beatmapset) = beatmapset {
-            backoff_time = 1.5;
+            backoff_time = ctx.config.backoff_start;
 
             let current_time = chrono::Utc::now();
             let beatmapset = Beatmapset {
@@ -130,8 +128,8 @@ async fn crawl_beatmapsets(ctx: &Context) -> anyhow::Result<()> {
             repositories::beatmapsets::create(&ctx, beatmapset).await?;
             log::info!("indexed beatmapset {}", highest_id - 1);
         } else {
-            if backoff_time < MAXIMUM_BACKOFF_SECONDS {
-                backoff_time = backoff_time.powf(2_f64).min(MAXIMUM_BACKOFF_SECONDS);
+            if backoff_time < ctx.config.max_backoff {
+                backoff_time = backoff_time.powf(2_f64).min(ctx.config.max_backoff);
             }
 
             log::warn!(
