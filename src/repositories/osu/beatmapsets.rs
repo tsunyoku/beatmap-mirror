@@ -18,10 +18,7 @@ pub async fn fetch(
 
 // TODO: authenticating twice is stupid
 // TODO: store?
-pub async fn download(
-    ctx: &Context,
-    beatmapset_id: u32,
-) -> anyhow::Result<hyper::Response<hyper::Body>> {
+pub async fn download(ctx: &Context, beatmapset_id: u32) -> anyhow::Result<Option<String>> {
     let client = reqwest::Client::new();
 
     let mut body_params = HashMap::new();
@@ -61,11 +58,11 @@ pub async fn download(
     let https = hyper_tls::HttpsConnector::new();
     let client = hyper::Client::builder().build::<_, hyper::Body>(https);
     let redirect_response = client.request(redirect_request).await?;
-    let mut osz_response = redirect_response;
-    let redirect_url = osz_response.headers().get("Location");
-    if let Some(redirect_url) = redirect_url {
-        osz_response = client.get(redirect_url.to_str()?.parse()?).await?;
-    }
+    let osz_response = redirect_response;
+    let redirect_url = osz_response
+        .headers()
+        .get("Location")
+        .map(|h| h.to_str().unwrap().to_string());
 
-    Ok(osz_response)
+    Ok(redirect_url)
 }

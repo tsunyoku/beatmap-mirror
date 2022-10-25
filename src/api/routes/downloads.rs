@@ -1,5 +1,5 @@
 use axum::extract::{Extension, Path};
-use axum::response::{Headers, IntoResponse};
+use axum::response::{IntoResponse, Redirect};
 use axum::{routing::get, Router};
 
 use crate::api::{error, Result};
@@ -30,23 +30,13 @@ async fn get_beatmapset(
         return Err(error::Error::NotFound);
     }
 
-    let beatmapset = beatmapset_option.unwrap();
-    let beatmapset_name = format!(
-        "{} {} - {}",
-        beatmapset_id, beatmapset.data.artist, beatmapset.data.title
-    );
-
-    let osz_file = repositories::osu::beatmapsets::download(&ctx, beatmapset_id).await?;
-
-    let headers = Headers([
-        (
-            String::from("Content-Type"),
-            String::from("application/octet-stream"),
-        ),
-        (
-            String::from("Content-Disposition"),
-            format!("attachment; filename=\"{}.osz\"", beatmapset_name),
-        ),
-    ]);
-    Ok((headers, osz_file))
+    let osz_url = repositories::osu::beatmapsets::download(&ctx, beatmapset_id).await?;
+    match osz_url {
+        Some(url) => {
+            Ok(Redirect::temporary(url.parse().map_err(|_| {
+                anyhow::anyhow!("Failed to parse url: {}", url)
+            })?))
+        }
+        None => Err(error::Error::NotFound),
+    }
 }
