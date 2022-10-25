@@ -41,4 +41,13 @@ pub struct Config {
 
     #[clap(long, env)]
     pub max_backoff: f64,
+
+    #[clap(long, env)]
+    pub max_requests_per_second: u64,
+
+    #[clap(long, env)]
+    pub max_retries: u64,
+
+    #[clap(long, env)]
+    pub max_timeout: u64,
 }

@@ -11,7 +11,7 @@ use elasticsearch::{
     },
     Elasticsearch,
 };
-use rosu_v2::{Osu, OsuBuilder};
+use rosu_v2::OsuBuilder;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -36,7 +36,9 @@ async fn main() -> anyhow::Result<()> {
     let database = Elasticsearch::new(transport);
 
     let osu_api = OsuBuilder::new()
-        .ratelimit(20)
+        .ratelimit(config.max_requests_per_second)
+        .retries(config.max_retries)
+        .timeout(config.max_timeout)
         .client_id(config.osu_api_client_id)
         .client_secret(config.osu_api_client_secret.clone())
         .build()
