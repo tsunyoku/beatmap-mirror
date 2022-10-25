@@ -24,13 +24,19 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 async fn serve_swagger_ui(Path(tail): Path<String>) -> Response<Full<Bytes>> {
     let file = utoipa_swagger_ui::serve(&tail[1..], Arc::new(Config::from("/openapi.json")))
         .map_err(|e| anyhow::anyhow!("failed to serve swagger ui: {}", e))
-        .unwrap()
         .unwrap();
 
-    Response::builder()
-        .header("content-type", file.content_type)
-        .body(Full::from(file.bytes.to_vec()))
-        .unwrap()
+    if let Some(file) = file {
+        Response::builder()
+            .header("content-type", file.content_type)
+            .body(Full::from(file.bytes.to_vec()))
+            .unwrap()
+    } else {
+        Response::builder()
+            .status(404)
+            .body(Full::from("not Found"))
+            .unwrap()
+    }
 }
 
 fn api_router() -> Router {
