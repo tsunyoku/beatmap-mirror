@@ -1,4 +1,5 @@
 # beatmap-mirror
+**Created primarily for [Nasuya](https://nasuya.xyz/docs)**
 
 A fast, efficient osu! beatmap mirror written in asynchronous Rust. Supports cheesegull, aswell as osu!api v2 formats.
 
