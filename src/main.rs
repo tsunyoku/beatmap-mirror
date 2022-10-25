@@ -11,7 +11,7 @@ use elasticsearch::{
     },
     Elasticsearch,
 };
-use rosu_v2::Osu;
+use rosu_v2::{Osu, OsuBuilder};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -35,11 +35,12 @@ async fn main() -> anyhow::Result<()> {
 
     let database = Elasticsearch::new(transport);
 
-    let osu_api = Osu::new(
-        config.osu_api_client_id,
-        config.osu_api_client_secret.clone(),
-    )
-    .await?;
+    let osu_api = OsuBuilder::new()
+        .ratelimit(20)
+        .client_id(config.osu_api_client_id)
+        .client_secret(config.osu_api_client_secret.clone())
+        .build()
+        .await?;
 
     let ctx = Context {
         config: Arc::new(config),
