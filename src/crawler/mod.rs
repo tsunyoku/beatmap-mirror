@@ -81,7 +81,7 @@ async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
 
             // if last successful id was not in last few batches, we're probably up to date
             // go back to last success + 1
-            if last_successful_id < current_id - 1000 {
+            if current_id > 1000 && current_id - 1000 > last_successful_id {
                 current_id = last_successful_id + 1;
             }
 
