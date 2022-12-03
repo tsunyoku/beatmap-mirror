@@ -29,6 +29,8 @@ async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
         .unwrap_or(1.0) as u64
         + 1;
 
+    let mut last_successful_id = current_id - 1;
+
     log::info!("starting beatmap crawl from id {}", current_id);
 
     let mut backoff_time = ctx.config.backoff_start;
@@ -59,7 +61,7 @@ async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
             backoff_time = ctx.config.backoff_start;
 
             let now = chrono::Utc::now();
-            let beatmaps = osu_beatmaps
+            let beatmaps: Vec<Beatmap> = osu_beatmaps
                 .iter_mut()
                 .map(|b| Beatmap {
                     data: b.to_owned(),
@@ -70,10 +72,17 @@ async fn crawl_beatmaps(ctx: &Context) -> anyhow::Result<()> {
                 })
                 .collect();
 
+            last_successful_id = beatmaps.iter().map(|b| b.data.map_id).max().unwrap() as u64;
             repositories::beatmaps::bulk_create(&ctx, beatmaps).await?;
         } else {
             if backoff_time < ctx.config.max_backoff {
                 backoff_time = backoff_time.powf(2_f64).min(ctx.config.max_backoff);
+            }
+
+            // if last successful id was not in last few batches, we're probably up to date
+            // go back to last success + 1
+            if last_successful_id < current_id - 1000 {
+                current_id = last_successful_id + 1;
             }
 
             log::warn!(
@@ -109,6 +118,8 @@ async fn crawl_beatmapsets(ctx: &Context) -> anyhow::Result<()> {
         .unwrap_or(0.0) as u32
         + 1;
 
+    let mut last_successful_id = current_id - 1;
+
     log::info!("starting beatmapset crawl from id {}", current_id);
 
     let mut backoff_time: f64 = ctx.config.backoff_start;
@@ -136,10 +147,17 @@ async fn crawl_beatmapsets(ctx: &Context) -> anyhow::Result<()> {
             };
 
             repositories::beatmapsets::create(&ctx, beatmapset).await?;
+            last_successful_id = current_id - 1;
             log::info!("indexed beatmapset {}", current_id - 1);
         } else {
             if backoff_time < ctx.config.max_backoff {
                 backoff_time = backoff_time.powf(2_f64).min(ctx.config.max_backoff);
+            }
+
+            // if failed 1000 maps in a row, we're probably up to date
+            // go back to last success + 1
+            if last_successful_id < current_id - 1000 {
+                current_id = last_successful_id + 1;
             }
 
             log::warn!(
