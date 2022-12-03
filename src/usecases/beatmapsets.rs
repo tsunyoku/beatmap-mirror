@@ -91,5 +91,13 @@ pub fn format_to_direct(beatmapsets: Vec<OsuBeatmapset>) -> String {
         response_lines.push(beatmapset_string);
     }
 
-    format!("{}\n{}", response_lines.len(), response_lines.join("\n"))
+    format!(
+        "{}\n{}",
+        if response_lines.len() == 100 {
+            101
+        } else {
+            response_lines.len()
+        },
+        response_lines.join("\n")
+    )
 }
